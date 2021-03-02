@@ -4,7 +4,7 @@
     "slug": "MyTasks",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./src/images/logo.png",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
@@ -20,10 +20,11 @@
       "supportsTablet": true
     },
     "android": {
-      "package": "mytasks.demo"
+      "package": "mytasks.demo",
+      "useNextNotificationsApi": true
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "favicon": "./src/images/logo.png"
     }
   }
 }

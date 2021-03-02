@@ -14,7 +14,9 @@ class Task extends GenericEntity {
       "status CHARACTER(1) DEFAULT 'O'",
       // If should by alarm: Y - Yes | N - No
       "alarm CHARACTER(1) DEFAULT 'Y'",
+      'notification_code VARCHAR(255)',
       "color VARCHAR(10) DEFAULT 'lightgreen'",
+      "working_time INTEGER DEFAULT 0",
       
       // If task was deleted: Y - Yes | N - No
       "deleted CHARACTER(1) DEFAULT 'N'",

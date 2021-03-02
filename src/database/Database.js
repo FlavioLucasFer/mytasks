@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import Task from './entities/Task';
+import UserConfigs from './entities/UserConfigs';
 
 class Database {
   databaseConnection;
@@ -16,9 +17,12 @@ class Database {
 
   initDb() {
     const task = new Task();
+    const userConfig = new UserConfigs();
 
     // task.drop(this.databaseConnection);
     task.create(this.databaseConnection);
+    // userConfig.drop(this.databaseConnection);
+    userConfig.create(this.databaseConnection);
   }
 
 };

@@ -1,8 +1,8 @@
 import React from 'react';
-import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { TouchableOpacity, Text, StyleSheet } from 'react-native';
 
 const SelectableTag = props => {
-  const { title, selected } = props;
+  const { title, selected, unSelectedColor } = props;
   
   const styles = StyleSheet.create({
     container: {
@@ -13,7 +13,7 @@ const SelectableTag = props => {
       padding: 10,
       height: 35,
   
-      borderColor: selected ? 'rgb(15, 146, 217)' : '#585858',
+      borderColor: selected ? 'rgb(15, 146, 217)' : unSelectedColor || '#585858',
       borderWidth: 2,
       borderRadius: 5,
 
@@ -21,7 +21,7 @@ const SelectableTag = props => {
     },
   
     title: {
-      color: selected ? '#fff' : '#585858',
+      color: selected ? '#fff' : unSelectedColor || '#585858',
       fontWeight: 'bold',
     },
   });

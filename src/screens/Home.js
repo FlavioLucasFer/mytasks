@@ -1,157 +1,226 @@
 import React from 'react';
-import { View, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
-import { FontAwesome5 } from '@expo/vector-icons';
+import { View, TouchableOpacity, FlatList, StyleSheet, Text } from 'react-native';
+import { connect } from 'react-redux';
+import { bindActionCreators } from 'redux';
+import { isEmpty } from 'lodash';
 
+import { actionCreators as actions } from '../redux/actions';
 import Card from '../components/Card';
 import TaskRegistrationModal from '../modals/TaskRegistrationModal';
-import Database from '../database/Database';
+import TaskService from '../database/services/TaskService';
+import HomeActionButtonsLine from '../components/HomeActionButtonsLine';
+import TaskTimeCounterBar from '../components/TaskTimeCounterBar';
+import ConfirmationModal from '../modals/ConfirmationModal';
+
+const EmptyTasksMessage = props => {
+  const { messageColor, language } = props;
+  
+  const styles = StyleSheet.create({
+    message: {
+      color: messageColor,
+      fontWeight: 'bold',
+    },
+  });
+
+  let message = 'Pressione o botão "+" (mais) para adicionar uma tarefa!';
+
+  if (language === 'E') {
+    message = 'Press the "+" (plus) button to add a task!'
+  }
+
+  return (
+    <View>
+      <Text style={styles.message}>{message}</Text>
+    </View>
+  );
+}
 
 class Home extends React.Component {
   constructor(props) {
     super(props);
 
     this.state = {
-      tasks: [],
-      database: new Database('my-tasks-db'),
+      selectedTasks: [],
     };
   }
 
-  componentDidMount() {
-    this.state.database.initDb();
+  fetchTasks() {
+    const { setTasks, databaseConnection } = this.props;
+    const taskService = new TaskService();
 
-    this.getAllTasks();
+    taskService.getAllTasks(databaseConnection, 'O', tasks => {
+      if (tasks.status) {
+        setTasks(tasks.data);
+      } else {
+        console.log('ERRORRRRRRRRR');
+      }
+    });
   }
 
-  getAllTasks() {
-    const databaseConnection = this.state.database.getDatabaseConnection();
+  onConfirmClone(task) {
+    const taskService = new TaskService();
+    taskService.cloneTask(this.props.databaseConnection, task, () => this.fetchTasks());
+  }
 
-    const getAllTasksSql = `
-      SELECT id 
-        ,title
-        ,annotation
-        ,date
-        ,hour
-        ,color
-        ,alarm
-        ,favorite
-      FROM task
-      WHERE status = 'O' 
-        AND deleted = 'N'
-      ORDER BY favorite = 'Y' 
-        AND id DESC;
-    `;
+  onSelect(task) {
+    const { selectedTasks } = this.state;
+
+    selectedTasks.push(task);
+
+    this.setState({
+      selectedTasks,
+    }, () => {
+      if (this.state.selectedTasks.length === 1) {
+        this.actionButtonsLine.buttonsAnimation();
+      }
+    });
+  }
+  
+  onDeselect(task) {
+    const { selectedTasks } = this.state;
     
-    databaseConnection.transaction(tx => {
-      tx.executeSql(getAllTasksSql, [], (e, i) => {
-        console.log(`[SELECT OF ALL TASKS WAS SUCCESS]`);
-
-        const tasks = [];
-        
-        console.log('sele:', i);
-
-        for (let index = 0; index < i.rows.length; index++) {
-          tasks.push(i.rows.item(index));
-        }
-
-        this.setState({
-          tasks,
-        });
-      });
+    const index = selectedTasks.indexOf(task);
+    
+    selectedTasks.splice(index, 1);
+    
+    this.setState({
+      selectedTasks,
+    }, () => {
+      if (!this.state.selectedTasks.length) {
+        this.actionButtonsLine.buttonsAnimation();
+      }
     });
   }
-  
-  changeTaskFavoriteStatus(id, favorite) {
-    const databaseConnection = this.state.database.getDatabaseConnection();
-  
-    const sqlTaskFavoriteStatus = `
-      UPDATE task SET
-        favorite = '${favorite}' 
-      WHERE id = ${id};
-    `;
 
-    databaseConnection.transaction(tx => {
-      tx.executeSql(sqlTaskFavoriteStatus, [], (e, i) => {
-        console.log('[UPDATE TASK FAVORITE STATUS SUCCESS]');
+  onStartTaskTimeCounter() {
+    const { selectedTask, setSelectedTask } = this.props;
 
-        const { tasks } = this.state;
+    if (selectedTask === this.state.selectedTasks[0]) {
+      return this.setState({ selectedTasks: [] });
+    }
 
-        const index = tasks.findIndex(e => e.id === id);
+    if (!isEmpty(selectedTask)) {
+      this.taskTimeCounterBar.stopTaskTimeCounter();
+    }
 
-        tasks[index].favorite = favorite;
+    setSelectedTask(this.state.selectedTasks[0]);
+    
+    this.setState({
+      selectedTasks: [],
+    }, () => {
+      this.taskTimeCounterBar.show();
+    });
+  }
 
-        this.setState({
-          tasks,
-        });
+  deleteSelectedTasks() {
+    const { selectedTasks } = this.state;
+    const { databaseConnection } = this.props;
+
+    const taskService = new TaskService();
+
+    selectedTasks.forEach((e, index) => {
+      taskService.inactivateTask(databaseConnection, e.id, () => {
+        if (selectedTasks.length - 1 === index) {
+          this.fetchTasks();
+        }
       });
     });
 
+    this.setState({ selectedTasks: [] });
   }
 
   render() {
     return (
-      <View style={{
-        display: 'flex',
-        alignItems: 'center',
-        marginTop: 10,
-        width: '100%',
-        height: '100%',
-      }}>
-        <FlatList data={this.state.tasks}
-          renderItem={({ item }) => (
-            <Card key={item.id} 
-              id={item.id}
-              title={item.title}
-              date={item.date}
-              hour={item.hour}
-              annotation={item.annotation}
-              color={item.color}
-              alarm={item.alarm}
-              favorite={item.favorite}
-              onPressFavoriteButton={(id, favorite) => {
-                this.changeTaskFavoriteStatus(id, favorite);
-              }} />
-          )} /> 
+      <View style={styles.container}>
+        <View style={[
+            styles.flatListView,
+            { paddingBottom: !isEmpty(this.props.selectedTask) ? 100 : 15 },
+          ]}>
+          <FlatList data={this.props.tasks}
+            renderItem={({ item }) => (
+              <Card key={item.id} 
+                id={item.id}
+                title={item.title}
+                date={item.date}
+                hour={item.hour}
+                annotation={item.annotation}
+                color={item.color}
+                alarm={item.alarm}
+                favorite={item.favorite}
+                workingTime={item.working_time}
+                status={item.status}
+                selected={this.state.selectedTasks.indexOf(item) > -1}
+                multiSelect={this.state.selectedTasks.length}
+                onPressEdit={() => this.taskRegistrationModal.setModalVisible(item)}
+                onConfirmClone={() => this.onConfirmClone(item)}
+                onSelect={() => this.onSelect(item)}
+                onDeselect={() => this.onDeselect(item)} />
+            )}
+            ListEmptyComponent={
+              <EmptyTasksMessage language={this.props.language}
+                messageColor={this.props.titlesAndIconsColor} />
+            } /> 
+        </View>
+          
+        <TaskTimeCounterBar ref={e => this.taskTimeCounterBar = e}
+          afterSetNewWorkingTime={() => this.fetchTasks()} />
 
-        <TouchableOpacity style={styles.newTaskButton}
-          onPress={() => {
-            this.taskRegistrationModal.setModalVisible();
-          }}>
-          <FontAwesome5 name='plus'
-            color='#fff'
-            size={30} />
-        </TouchableOpacity>
+        <HomeActionButtonsLine ref={e => this.actionButtonsLine = e} 
+          multiSelect={this.state.selectedTasks.length > 1}
+          onStartTaskTimeCounter={() => this.onStartTaskTimeCounter()}
+          onPressDelete={() => this.confirmDeleteTasksModal.setModalVisible()} />
 
-        <TaskRegistrationModal ref={e => this.taskRegistrationModal = e}
-          onConfirm={task => {
-            const { tasks } = Object.assign({}, this.state); 
-            
-            tasks.unshift(task);
+        <TaskRegistrationModal ref={e => this.taskRegistrationModal = e} />
 
-            this.setState({
-              tasks,
-            });
-          }}
-          databaseConnection={this.state.database.getDatabaseConnection()} />
+        <ConfirmationModal ref={e => this.confirmDeleteTasksModal = e}
+          message={
+            this.props.language === 'P' ?
+              'Tem certeza que deseja excluir as tarefas selecionadas?'
+              :
+              'Are you sure you want to delete the selected tasks?'
+          }
+          onConfirm={() => this.deleteSelectedTasks()} />
       </View>
     );
   }
 };
 
 const styles = StyleSheet.create({
-  newTaskButton: {
+  container: {
+    width: '100%',
+    height: '100%',
+  },
+
+  flatListView: {
     display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center', 
-
-    position: 'absolute',
-    bottom: 20,
-    right: 10,
-
-    backgroundColor: '#47d145',
-    borderRadius: 50,
-    height: 60,
-    width: 60,
+    alignItems: 'center',
+    marginTop: 10,
+    width: '100%',
+    height: '100%',
   },
 });
 
-export default Home;
+const mapStateToProps = state => {
+  const { tasks, selectedTask, databaseConnection, titlesAndIconsColor, language } = state;
+
+  return {
+    databaseConnection,
+    tasks,
+    selectedTask,
+    titlesAndIconsColor,
+    language,
+  };
+}
+
+const mapDispatchToProps = dispatch => {
+  return {
+    setTasks: bindActionCreators(actions.setTasks, dispatch),
+    setSelectedTask: bindActionCreators(actions.setSelectedTask, dispatch),
+    clearSelectedTask: bindActionCreators(actions.clearSelectedTask, dispatch),
+  };
+}
+
+export default connect(
+  mapStateToProps,
+  mapDispatchToProps,
+)(Home);

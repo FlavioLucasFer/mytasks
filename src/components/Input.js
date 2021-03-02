@@ -2,7 +2,7 @@ import React from 'react';
 import { View, TextInput, Text, StyleSheet } from 'react-native';
 
 const Input = props => {
-  const { countCharLength, value, maxLength, backgroundColor, multiline } = props;
+  const { countCharLength, value, maxLength, backgroundColor, borderColor, multiline } = props;
 
   let charNearToMaxPercentage = 0;
   let charLengthTextColor = '#47d145';
@@ -35,7 +35,7 @@ const Input = props => {
       height: countCharLength ? '95%' : '100%',
       
       backgroundColor: backgroundColor || 'transparent',
-      borderColor: 'rgba(88, 88, 88, .5)',
+      borderColor: borderColor || 'rgba(88, 88, 88, .5)',
       borderWidth: 2,
       borderRadius: 5,
       

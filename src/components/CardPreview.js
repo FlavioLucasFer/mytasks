@@ -111,7 +111,7 @@ const FooterCardPreview = props => {
     },
 
     dateTime: {
-      marginRight: 10,
+      // marginRight: 10,
       opacity: 0.5,
     },
   });
@@ -121,10 +121,10 @@ const FooterCardPreview = props => {
       <View style={styles.dateAlarmView}>
         <Text style={styles.dateTime}>{props.date} {props.hour}</Text>
 
-        <FontAwesome5 name={props.alarm ? 'volume-up' : 'volume-mute'}
+        {/* <FontAwesome5 name={props.alarm ? 'volume-up' : 'volume-mute'}
           color='#000'
           size={20}
-          style={{ opacity: props.alarm ? 1 : 0.5 }} />
+          style={{ opacity: props.alarm ? 1 : 0.5 }} /> */}
       </View>
     </View>
   );
@@ -136,9 +136,11 @@ const CardPreview = props => {
       <View style={styles.headerView}>
         <HeaderCardPreview {...props} />
       </View>
-      <View style={styles.bodyView}>
-        <BodyCardPreview {...props} />
-      </View>
+      {!props.disableBody ?
+        <View style={styles.bodyView}>
+          <BodyCardPreview {...props} />
+        </View>
+      : null}
       <View style={styles.footerView}>
         <FooterCardPreview {...props} />
       </View>
