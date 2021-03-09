@@ -12,6 +12,7 @@ import {
   CLEAR_SELECTED_TASK,
   INCREASE_TASK_TIME_COUNTER,
   RESET_TASK_TIME_COUNTER,
+  SET_MORE_SECONDS_TO_TASK_TIME_COUNTER,
 } from './types';
 
 const setInitialLoadingToFalse = () => {
@@ -107,6 +108,13 @@ const resetTaskTimeCounter = () => {
   };
 }
 
+const setMoreSecondsToTaskTimeCounter = seconds => {
+  return {
+    type: SET_MORE_SECONDS_TO_TASK_TIME_COUNTER,
+    seconds,
+  };
+}
+
 const actionCreators = {
   setInitialLoadingToFalse,
   setTasks,
@@ -121,6 +129,7 @@ const actionCreators = {
   clearSelectedTask,
   increaseTaskTimeCounter,
   resetTaskTimeCounter,
+  setMoreSecondsToTaskTimeCounter,
 };
 
 export { actionCreators };

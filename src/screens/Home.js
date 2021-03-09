@@ -11,6 +11,7 @@ import TaskService from '../database/services/TaskService';
 import HomeActionButtonsLine from '../components/HomeActionButtonsLine';
 import TaskTimeCounterBar from '../components/TaskTimeCounterBar';
 import ConfirmationModal from '../modals/ConfirmationModal';
+import Toastr from '../components/Toastr';
 
 const EmptyTasksMessage = props => {
   const { messageColor, language } = props;
@@ -44,22 +45,33 @@ class Home extends React.Component {
     };
   }
 
-  fetchTasks() {
-    const { setTasks, databaseConnection } = this.props;
+  fetchTasks(callback) {
+    const { setTasks, databaseConnection, language } = this.props;
     const taskService = new TaskService();
 
     taskService.getAllTasks(databaseConnection, 'O', tasks => {
       if (tasks.status) {
         setTasks(tasks.data);
+
+        if (callback) {
+          callback();
+        }
       } else {
-        console.log('ERRORRRRRRRRR');
+        let errorMessage = 'Um erro ocorreu durante a busca das tarefas abertas :(';
+
+        if (language) {
+          errorMessage = 'An error occurred while searching for open tasks';
+        }
+
+        this.toastr.setVisible(errorMessage);
       }
     });
   }
 
   onConfirmClone(task) {
     const taskService = new TaskService();
-    taskService.cloneTask(this.props.databaseConnection, task, () => this.fetchTasks());
+    taskService.cloneTask(this.props.databaseConnection, task, 
+      () => this.fetchTasks(() => this.tasksFlatList.scrollToEnd({ animated: true })));
   }
 
   onSelect(task) {
@@ -129,6 +141,29 @@ class Home extends React.Component {
     this.setState({ selectedTasks: [] });
   }
 
+  onFavorite(ret) {
+    if (ret.status) {
+      return this.tasksFlatList.scrollToOffset({ animated: true, offset: 0 });
+    }
+
+    const { language } = this.props;
+    let errorMessage = 'Um erro ocorreu ao tentar marcar tarefa como favorita :(';
+
+    if (language === 'E') {
+      errorMessage = 'An error occurred while trying to mark task as a favorite :(';
+    }
+    
+    if (ret.error.errorCode === 401) {
+      errorMessage = 'Máximo de tarefas favoritas excedido (3)!';
+
+      if (language === 'E') {
+        errorMessage = 'Maximum favorite tasks exceeded (3)!';
+      }
+    }
+
+    this.toastr.setVisible(errorMessage);
+  }
+
   render() {
     return (
       <View style={styles.container}>
@@ -136,7 +171,8 @@ class Home extends React.Component {
             styles.flatListView,
             { paddingBottom: !isEmpty(this.props.selectedTask) ? 100 : 15 },
           ]}>
-          <FlatList data={this.props.tasks}
+          <FlatList ref={e => this.tasksFlatList = e} 
+            data={this.props.tasks}
             renderItem={({ item }) => (
               <Card key={item.id} 
                 id={item.id}
@@ -151,6 +187,8 @@ class Home extends React.Component {
                 status={item.status}
                 selected={this.state.selectedTasks.indexOf(item) > -1}
                 multiSelect={this.state.selectedTasks.length}
+                onCardOpen={() => this.tasksFlatList.scrollToItem({ animated: true, item })}
+                onFavorite={e => this.onFavorite(e)}
                 onPressEdit={() => this.taskRegistrationModal.setModalVisible(item)}
                 onConfirmClone={() => this.onConfirmClone(item)}
                 onSelect={() => this.onSelect(item)}
@@ -168,9 +206,18 @@ class Home extends React.Component {
         <HomeActionButtonsLine ref={e => this.actionButtonsLine = e} 
           multiSelect={this.state.selectedTasks.length > 1}
           onStartTaskTimeCounter={() => this.onStartTaskTimeCounter()}
-          onPressDelete={() => this.confirmDeleteTasksModal.setModalVisible()} />
+          onPressDelete={() => this.confirmDeleteTasksModal.setModalVisible()}
+          onConfirmNewTaskAfterFetch={() => {
+            const timeout = setTimeout(() => {
+              this.tasksFlatList.scrollToEnd({ animated: true })
+              clearTimeout(timeout);
+            }, 100);
+
+          }} />
 
         <TaskRegistrationModal ref={e => this.taskRegistrationModal = e} />
+
+        <Toastr ref={e => this.toastr = e} />
 
         <ConfirmationModal ref={e => this.confirmDeleteTasksModal = e}
           message={

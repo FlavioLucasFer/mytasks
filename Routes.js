@@ -13,6 +13,7 @@ import UserConfigs from './src/screens/UserConfigs';
 import AboutApp from './src/screens/AboutApp';
 import ThemeChange from './src/screens/ThemeChange';
 import LanguageChange from './src/screens/LanguageChange';
+import Graphics from './src/screens/Graphics';
 
 const UserConfigButton = props => {
   const styles = StyleSheet.create({
@@ -85,6 +86,7 @@ class Routes extends React.Component {
                 backgroundColor: headerBackgroundColor,
               }}
               renderRightButton={<UserConfigButton iconColor={titlesAndIconsColor} />} >
+
               <Scene key='home'
                 title={language === 'P' ? 'Tarefas' : 'Tasks'}
                 component={Home}
@@ -97,6 +99,7 @@ class Routes extends React.Component {
               <Scene key='notdone'
                 title={language === 'P' ? 'Não Feitas' : 'Not Done'}
                 component={NotDone} />
+
             </Tabs>
             
             <Scene key='initialloading'

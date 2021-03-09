@@ -3,11 +3,12 @@ import { View, FlatList, StyleSheet, Text } from 'react-native';
 import { connect } from 'react-redux';
 import { bindActionCreators } from 'redux';
 
-import { actionCreators as actions } from '../redux/actions';
-import Card from '../components/Card';
 import RecoverTaskStatusToOpenActionButton from '../components/RecoverTaskStatusToOpenActionButton';
+import { actionCreators as actions } from '../redux/actions';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import TaskService from '../database/services/TaskService';
+import Card from '../components/Card';
+import Toastr from '../components/Toastr';
 
 const EmptyTasksMessage = props => {
   const { messageColor, language } = props;
@@ -42,14 +43,20 @@ class NotDone extends React.Component {
   }
 
   fetchTasks() {
-    const { setTasks, setTasksNotDone, databaseConnection } = this.props;
+    const { setTasks, setTasksNotDone, databaseConnection, language } = this.props;
     const taskService = new TaskService();
 
     taskService.getAllTasks(databaseConnection, 'O', tasks => {
       if (tasks.status) {
         setTasks(tasks.data);
       } else {
-        console.log('ERRORRRRRRRRR');
+        let errorMessage = 'Um erro ocorreu durante a busca das tarefas abertas :(';
+
+        if (language) {
+          errorMessage = 'An error occurred while searching for open tasks';
+        }
+
+        this.toastr.setVisible(errorMessage);
       }
     });
 
@@ -57,7 +64,13 @@ class NotDone extends React.Component {
       if (tasks.status) {
         setTasksNotDone(tasks.data);
       } else {
-        console.log('ERRORRRRRRRRR');
+        let errorMessage = 'Um erro ocorreu durante a busca das tarefas não feitas :(';
+
+        if (language) {
+          errorMessage = 'An error occurred while searching for tasks not done';
+        }
+
+        this.toastr.setVisible(errorMessage);
       }
     });
   }
@@ -150,6 +163,8 @@ class NotDone extends React.Component {
               'Are you sure you want to reopen the selected tasks?'
           }
           onConfirm={() => this.reopenTasks()} />
+
+        <Toastr ref={e => this.toastr = e} />
       </View>
     );
   }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, TouchableOpacity, StyleSheet, Animated, Easing, Text } from 'react-native';
+import { View, TouchableOpacity, StyleSheet, Animated, Easing, Text, AppState } from 'react-native';
 import moment from 'moment';
 import { FontAwesome5 } from '@expo/vector-icons';
 import { bindActionCreators } from 'redux';
@@ -7,6 +7,7 @@ import { connect } from 'react-redux';
 
 import { actionCreators as actions } from '../redux/actions';
 import TaskService from '../database/services/TaskService';
+import { isEmpty } from 'lodash';
 
 class TaskTimeCounterBar extends React.Component {
   tick = null;
@@ -16,8 +17,43 @@ class TaskTimeCounterBar extends React.Component {
 
     this.state = {
       bottomAnimation: new Animated.Value(-80),
+      appState: AppState.currentState,
+      backgroundedAppTimestamp: '',
     };
   }
+
+  componentDidMount() {
+    AppState.addEventListener('change', this.handleAppStateChange);
+  }
+
+  componentWillUnmount() {
+    AppState.removeEventListener('change', this.handleAppStateChange);
+  }
+
+  handleAppStateChange = nextAppState => {
+    if (this.state.appState.match(/inactive|background/) && nextAppState === 'active') {
+      const { selectedTask, setMoreSecondsToTaskTimeCounter } = this.props;
+
+      if (!isEmpty(selectedTask)) {
+        const { backgroundedAppTimestamp } = this.state;
+        
+        const now = moment(new Date());
+        const start = moment(backgroundedAppTimestamp);
+        const secondsDiff = moment.duration(now.diff(start)).asSeconds();
+
+        setMoreSecondsToTaskTimeCounter(secondsDiff);
+
+        this.setState({ backgroundedAppTimestamp: '' });
+      }
+      
+    } 
+    
+    else {
+      this.setState({ backgroundedAppTimestamp: new Date() });
+    }
+
+    this.setState({ appState: nextAppState });
+  };
 
   show() {
     Animated.timing(this.state.bottomAnimation, {
@@ -180,6 +216,7 @@ const mapDispatchToProps = dispatch => {
     resetTaskTimeCounter: bindActionCreators(actions.resetTaskTimeCounter, dispatch),
     increaseTaskTimeCounter: bindActionCreators(actions.increaseTaskTimeCounter, dispatch),
     clearSelectedTask: bindActionCreators(actions.clearSelectedTask, dispatch),
+    setMoreSecondsToTaskTimeCounter: bindActionCreators(actions.setMoreSecondsToTaskTimeCounter, dispatch),
   };
 }
 

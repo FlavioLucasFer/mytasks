@@ -107,7 +107,8 @@ class HomeActionButtonsLine extends React.Component {
   
         </TouchableOpacity>
 
-        <TaskRegistrationModal ref={e => this.taskRegistrationModal = e} />
+        <TaskRegistrationModal ref={e => this.taskRegistrationModal = e}
+          onConfirmAfterFetch={this.props.onConfirmNewTaskAfterFetch} />
       </View>
     );
   }

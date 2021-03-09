@@ -8,6 +8,7 @@ import RecoverTaskStatusToOpenActionButton from '../components/RecoverTaskStatus
 import Card from '../components/Card';
 import TaskService from '../database/services/TaskService';
 import ConfirmationModal from '../modals/ConfirmationModal';
+import Toastr from '../components/Toastr';
 
 const EmptyTasksMessage = props => {
   const { messageColor, language } = props;
@@ -42,14 +43,20 @@ class Done extends React.Component {
   }
 
   fetchTasks() {
-    const { setTasks, setTasksDone, databaseConnection } = this.props;
+    const { setTasks, setTasksDone, databaseConnection, language } = this.props;
     const taskService = new TaskService();
 
     taskService.getAllTasks(databaseConnection, 'O', tasks => {
       if (tasks.status) {
         setTasks(tasks.data);
       } else {
-        console.log('ERRORRRRRRRRR');
+        let errorMessage = 'Um erro ocorreu durante a busca das tarefas abertas :(';
+
+        if (language) {
+          errorMessage = 'An error occurred while searching for open tasks';
+        }
+
+        this.toastr.setVisible(errorMessage);
       }
     });
 
@@ -57,7 +64,13 @@ class Done extends React.Component {
       if (tasks.status) {
         setTasksDone(tasks.data);
       } else {
-        console.log('ERRORRRRRRRRR');
+        let errorMessage = 'Um erro ocorreu durante a busca das tarefas feitas :(';
+
+        if (language) {
+          errorMessage = 'An error occurred while searching for tasks done';
+        }
+
+        this.toastr.setVisible(errorMessage);
       }
     });
   }
@@ -150,6 +163,8 @@ class Done extends React.Component {
               'Are you sure you want to reopen the selected tasks?'
           }
           onConfirm={() => this.reopenTasks()} />
+        
+        <Toastr ref={e => this.toastr = e} />
       </View>
     );
   }

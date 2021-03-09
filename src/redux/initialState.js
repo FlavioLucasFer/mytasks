@@ -9,6 +9,7 @@ const initialState = {
 
   systemBlue: '#0f92d9',
   systemRed: '#ff6666',
+  systemGrey: '#585858',
 
   initialLoading: true,
   theme: 'L',

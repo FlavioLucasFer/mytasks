@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import moment from 'moment';
 import { FontAwesome5, FontAwesome } from '@expo/vector-icons';
 
 const HeaderCardPreview = props => {
@@ -116,10 +117,28 @@ const FooterCardPreview = props => {
     },
   });
 
+  const { date, hour, language } = props;
+
+  let dateDesc = date;
+
+  if (language === 'E') {
+    if (date === 'SEG. A SEX.') {
+      dateDesc = 'MON. TO FRI.';
+    }
+
+    else if (date === 'TODOS OS DIAS') {
+      dateDesc = 'EVERYDAYS';
+    }
+
+    else {
+      dateDesc = moment(date, 'DD/MM/YYYY').format('YYYY-MM-DD');
+    }
+  }
+
   return (
     <View style={styles.container}>
       <View style={styles.dateAlarmView}>
-        <Text style={styles.dateTime}>{props.date} {props.hour}</Text>
+        <Text style={styles.dateTime}>{dateDesc} {hour}</Text>
 
         {/* <FontAwesome5 name={props.alarm ? 'volume-up' : 'volume-mute'}
           color='#000'

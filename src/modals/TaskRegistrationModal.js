@@ -15,6 +15,7 @@ import CardPreview, { BodyCardPreview, FooterCardPreview, HeaderCardPreview } fr
 import ConfirmationModal from './ConfirmationModal';
 import TaskService from '../database/services/TaskService';
 import Notification from '../utils/Notification';
+import Toastr from '../components/Toastr';
 
 const devideHeight = Dimensions.get('window').height;
 
@@ -54,14 +55,24 @@ class TaskRegistrationModal extends React.Component {
   }
 
   setStateClear() {
+    const now = new Date();
+    now.setMilliseconds(0);
+
     return {
       isModalVisible: false,
       actualPageNumber: 1,
       showHourPicker: false,
       showDatePicker: false,
-      hourPickerValue: new Date(),
-      datePickerValue: new Date(),
+      hourPickerValue: now,
+      datePickerValue: now,
+      
+      registry: this.setRegistryClean(),
+      oldRegistry: this.setRegistryClean(),
+    };
+  }
 
+  setRegistryClean() {
+    return {
       id: '',
       title: '',
       annotation: '',
@@ -75,13 +86,45 @@ class TaskRegistrationModal extends React.Component {
 
   setModalVisible(task) {
     if (task) {
+      let dateType = 'today';
+      const hour = task.hour.split(':');
+      let dates = task.date;
+      const datePickerValue = new Date();
+      const hourPickerValue = new Date();
+      hourPickerValue.setHours(hour[0], hour[1], 0, 0);
+
+      if (task.date !== moment().format('DD/MM/YYYY')) {
+        dateType = 'monthDay';
+      }
+
+      if (task.date === 'SEG. A SEX.') {
+        dateType = 'mondayToFriday';
+      } else if (task.date === 'TODOS OS DIAS') {
+        dateType = 'everydays';
+      }
+
+      if (dateType !== 'mondayToFriday' && dateType !== 'everydays') {
+        dates = dates.split('/');
+        hourPickerValue.setFullYear(dates[2], dates[1] - 1, dates[0]);
+      }
+
+      const registry = {
+        ...task,
+        dateType,
+      };
+      
       this.setState({
         ...this.setStateClear(),
+        datePickerValue,
+        hourPickerValue,
         isModalVisible: true,
-        ...task,
-        originalTask: task,
+
+        registry,
+        oldRegistry: registry,
       });
-    } else {
+    } 
+    
+    else {
       this.setState({
         ...this.setStateClear(),
         isModalVisible: true,
@@ -95,15 +138,25 @@ class TaskRegistrationModal extends React.Component {
     });
   }
 
-  fetchTasks() {
-    const { setTasks, databaseConnection } = this.props;
+  fetchTasks(callback) {
+    const { setTasks, databaseConnection, language } = this.props;
     const taskService = new TaskService();
 
     taskService.getAllTasks(databaseConnection, 'O', tasks => {
       if (tasks.status) {
         setTasks(tasks.data);
+
+        if (callback) {
+          callback();
+        } 
       } else {
-        console.log('ERRORRRRRRRRR');
+        let errorMessage = 'Um erro ocorreu durante a busca das tarefas abertas :(';
+
+        if (language) {
+          errorMessage = 'An error occurred while searching for open tasks';
+        }
+
+        this.toastr.setVisible(errorMessage);
       }
     });
   }
@@ -128,17 +181,20 @@ class TaskRegistrationModal extends React.Component {
               maxLength={20}
               borderColor={titlesAndIconsColor}
               backgroundColor={headerBackgroundColor !== '#fff' && 'rgba(255, 255, 255, .2)'}
-              value={this.state.title}
+              value={this.state.registry.title}
               onChangeText={e => {
                 this.setState({
-                  title: e,
+                  registry: {
+                    ...this.state.registry,
+                    title: e,
+                  },
                 });
               }} />
           </View>
           
           <CardPreviewContainer previewTextColor={titlesAndIconsColor}>
-            <HeaderCardPreview title={this.state.title}
-              color={this.state.color} />
+            <HeaderCardPreview title={this.state.registry.title}
+              color={this.state.registry.color} />
           </CardPreviewContainer>
         </View>
       </View>
@@ -162,17 +218,20 @@ class TaskRegistrationModal extends React.Component {
               borderColor={titlesAndIconsColor}
               backgroundColor={headerBackgroundColor !== '#fff' && 'rgba(255, 255, 255, .2)'}
               multiline
-              value={this.state.annotation}
+              value={this.state.registry.annotation}
               onChangeText={e => {
                 this.setState({
-                  annotation: e,
+                  registry: {
+                    ...this.state.registry,
+                    annotation: e,
+                  },
                 });
               }} />
           </View>
 
           <CardPreviewContainer previewTextColor={titlesAndIconsColor}>
-            <BodyCardPreview annotation={this.state.annotation}
-              color={this.state.color} />
+            <BodyCardPreview annotation={this.state.registry.annotation}
+              color={this.state.registry.color} />
           </CardPreviewContainer>
         </View>
       </View>
@@ -180,7 +239,12 @@ class TaskRegistrationModal extends React.Component {
   }
 
   renderDateHourPicker() {
-    const { showHourPicker, showDatePicker, datePickerValue, hourPickerValue } = this.state;
+    const { 
+      showHourPicker, 
+      showDatePicker, 
+      datePickerValue, 
+      hourPickerValue,
+    } = this.state;
 
     if (showHourPicker || showDatePicker) {
       return <DateTimePicker value={showHourPicker ? hourPickerValue : datePickerValue}
@@ -201,13 +265,23 @@ class TaskRegistrationModal extends React.Component {
             this.setState({
               showHourPicker: false,
               hourPickerValue: i,
-              hour: moment(i).format('HH:mm'),
+              
+              registry: {
+                ...this.state.registry,
+                hour: moment(i).format('HH:mm'),
+              },
             });
-          } else {
+          } 
+          
+          else {
             this.setState({
               showDatePicker: false,
               datePickerValue: i,
-              date: moment(i).format('DD/MM/YYYY'),
+              
+              registry: {
+                ...this.state.registry,
+                date: moment(i).format('DD/MM/YYYY'),
+              },
             });
           }
         }} />;
@@ -217,8 +291,12 @@ class TaskRegistrationModal extends React.Component {
   }
   
   renderDateHourForm() {
-    const { dateType, date } = this.state;
     const { language, titlesAndIconsColor } = this.props;
+    let { dateType, date } = this.state.registry;
+
+    if (language === 'E') {
+      date = moment(date, 'DD/MM/YYYY').format('YYYY-MM-DD');
+    }
 
     return (
       <View style={styles.formContent}>
@@ -228,8 +306,11 @@ class TaskRegistrationModal extends React.Component {
             <SelectableTag title={language === 'P' ? 'Hoje' : 'Today'}
               selected={dateType === 'today'}
               onPress={() => this.setState({ 
-                dateType: 'today',
-                date: moment().format('DD/MM/YYYY'),
+                registry: {
+                  ...this.state.registry,
+                  dateType: 'today',
+                  date: moment().format('DD/MM/YYYY'),
+                },
               })} 
               unSelectedColor={titlesAndIconsColor} />
           </View>
@@ -238,8 +319,11 @@ class TaskRegistrationModal extends React.Component {
             <SelectableTag title={language === 'P' ? 'Seg. a Sex.' : 'Mon. to Fri.'}
               selected={dateType === 'mondayToFriday'}
               onPress={() => this.setState({ 
-                dateType: 'mondayToFriday',
-                date: 'SEG. A SEX.',
+                registry: {
+                  ...this.state.registry,
+                  dateType: 'mondayToFriday',
+                  date: 'SEG. A SEX.',
+                },
               })} 
               unSelectedColor={titlesAndIconsColor} />
           </View>
@@ -248,8 +332,11 @@ class TaskRegistrationModal extends React.Component {
             <SelectableTag title={language === 'P' ? 'Todos os dias' : 'Everydays'}
               selected={dateType === 'everydays'}
               onPress={() => this.setState({ 
-                dateType: 'everydays',
-                date: 'TODOS OS DIAS',
+                registry: {
+                  ...this.state.registry,
+                  dateType: 'everydays',
+                  date: 'TODOS OS DIAS',
+                },
               })} 
               unSelectedColor={titlesAndIconsColor} />
           </View>
@@ -259,7 +346,11 @@ class TaskRegistrationModal extends React.Component {
               selected={dateType === 'monthDay'}
               onPress={() => {
                 this.setState({ 
-                  dateType: 'monthDay',
+                  registry: {
+                    ...this.state.registry,
+                    dateType: 'monthDay',
+                  },
+
                   showDatePicker: true,
                 });
               }} 
@@ -269,7 +360,7 @@ class TaskRegistrationModal extends React.Component {
 
         {this.renderDialogText(language === 'P' ? 'E o horário?' : 'And what time?')}
         <View style={styles.hourFormView}>
-          <SelectableTag title={this.state.hour}
+          <SelectableTag title={this.state.registry.hour}
             onPress={() => this.setState({ showHourPicker: true })}
             unSelectedColor={titlesAndIconsColor} />
 
@@ -293,10 +384,11 @@ class TaskRegistrationModal extends React.Component {
 
         <CardPreviewContainer height={devideHeight / 24}
           previewTextColor={titlesAndIconsColor}>
-          <FooterCardPreview date={this.state.date}
-            hour={this.state.hour}
-            alarm={this.state.alarm === 'Y'}
-            color={this.state.color} />
+          <FooterCardPreview date={this.state.registry.date}
+            hour={this.state.registry.hour}
+            alarm={this.state.registry.alarm === 'Y'}
+            color={this.state.registry.color}
+            language={this.props.language} />
         </CardPreviewContainer>
       </View>
     );
@@ -304,7 +396,7 @@ class TaskRegistrationModal extends React.Component {
   }
   
   renderColorForm() {
-    const { color, title } = this.state;
+    const { color, title } = this.state.registry;
     const { language, titlesAndIconsColor } = this.props;
 
     const colors = [
@@ -326,7 +418,14 @@ class TaskRegistrationModal extends React.Component {
               <View style={[styles.tagMarginRight, styles.tagMarginTop]}>
                 <ColorBlock backgroundColor={e}
                   selected={color === e}
-                  onPress={() => this.setState({ color: e })} />
+                  onPress={() => {
+                    this.setState({ 
+                      registry: {
+                        ...this.state.registry,
+                        color: e,
+                      },
+                    });
+                  }} />
               </View> 
           ))}
 
@@ -341,21 +440,24 @@ class TaskRegistrationModal extends React.Component {
   }
 
   renderConfirmForm() {
+    const { registry } = this.state;
+
     const styles = StyleSheet.create({
       cardPreview: {
-        height: !this.state.annotation ? 80 : '100%',
+        height: !registry.annotation ? 80 : '100%',
       },
     });
 
     return (
       <View style={styles.cardPreview}>
-        <CardPreview title={this.state.title}
-          annotation={this.state.annotation}
-          date={this.state.date}
-          hour={this.state.hour}
-          alarm={this.state.alarm === 'Y'}
-          color={this.state.color}
-          disableBody={!this.state.annotation} />
+        <CardPreview title={registry.title}
+          annotation={registry.annotation}
+          date={registry.date}
+          hour={registry.hour}
+          alarm={registry.alarm === 'Y'}
+          color={registry.color}
+          language={this.props.language}
+          disableBody={!registry.annotation} />
       </View>
     );
   }
@@ -407,11 +509,11 @@ class TaskRegistrationModal extends React.Component {
   }
 
   sendNotification(taskId) {
-    const splitDate = this.state.date.split('/');
-    const splitHour = this.state.hour.split(':');
+    const splitDate = this.state.registry.date.split('/');
+    const splitHour = this.state.registry.hour.split(':');
 
-    const title = `Uma tarefa se aproxima! #${taskId} - ${this.state.title.toUpperCase()}`;
-    const body = this.state.annotation || this.state.title.toUpperCase();
+    const title = `Uma tarefa se aproxima! #${taskId} - ${this.state.registry.title.toUpperCase()}`;
+    const body = this.state.registry.annotation || this.state.registry.title.toUpperCase();
 
     let type = 'calendar';
     const date = new Date();
@@ -424,7 +526,7 @@ class TaskRegistrationModal extends React.Component {
 
 
     const currentTimeStamp = new Date();
-    let minutesDiff = moment(`${this.state.date} ${this.state.hour}`, 'DD/MM/YYYY HH:mm')
+    let minutesDiff = moment(`${this.state.registry.date} ${this.state.registry.hour}`, 'DD/MM/YYYY HH:mm')
       .diff(moment(currentTimeStamp, 'DD/MM/YYYY HH:mm'), 'minutes');
 
       
@@ -434,7 +536,7 @@ class TaskRegistrationModal extends React.Component {
       minute -= 5;
     }
     
-    if ((this.state.dateType === 'today' || this.state.dateType === 'monthDay') 
+    if ((this.state.registry.dateType === 'today' || this.state.registry.dateType === 'monthDay') 
       && type !== 'now') {
       type = 'date';
 
@@ -442,7 +544,7 @@ class TaskRegistrationModal extends React.Component {
       date.setHours(hour - 3, minute, 0, 0);
     }
 
-    if (this.state.dateType === 'mondayToFriday') {
+    if (this.state.registry.dateType === 'mondayToFriday') {
       weekday = 5;
     }
 
@@ -454,7 +556,7 @@ class TaskRegistrationModal extends React.Component {
   }
 
   onConfirm() {
-    if (this.state.id) {
+    if (this.state.registry.id) {
       this.confirmEditModal.setModalVisible();
     } 
     
@@ -462,10 +564,15 @@ class TaskRegistrationModal extends React.Component {
       const { databaseConnection } = this.props;
       const taskService = new TaskService();
 
-      taskService.insertTaskOnDatabase(databaseConnection, this.state, e => {
+      taskService.insertTaskOnDatabase(databaseConnection, this.state.registry, e => {
         if (e.status) {
-          this.fetchTasks();
-          this.sendNotification(e.insertId);
+          this.fetchTasks(() => {
+            if (this.props.onConfirmAfterFetch) {
+              this.props.onConfirmAfterFetch();
+            }
+          });
+
+          this.sendNotification(e.data);
         }
       });
 
@@ -480,31 +587,27 @@ class TaskRegistrationModal extends React.Component {
 
   onCancel() {
     const { language } = this.props;
-    let message = 'Tem certeza que deseja descartar esta tarefa?';
-    let task = Object.assign({}, this.state);
-
-    if (language === 'E') {
-      message = 'Are you sure you want to discard this task?';
-    }
-
-    delete task.isModalVisible;
-    delete task.actualPageNumber;
-    delete task.showHourPicker;
-    delete task.showDatePicker;
-    delete task.hourPickerValue;
-    delete task.datePickerValue;
-
-    if (this.state.originalTask && !isEqual(task, this.state.originalTask)) {
-      message = `Tem certeza que deseja descartar as alterações na tarefa #${this.state.id}?`;
-      
+    const { registry, oldRegistry } = this.state;
+    
+    if (!isEqual(registry, oldRegistry)) {
+      let message = 'Tem certeza que deseja descartar esta tarefa?';
+  
       if (language === 'E') {
-        message = `Are you sure you want to discard changes to the task #${this.state.id}?`;
+        message = 'Are you sure you want to discard this task?';
       }
 
-      this.confirmCloseModal.setModalVisible(message);
+      if (registry.id) {
+        message = `Tem certeza que deseja descartar as alterações na tarefa #${registry.id}?`;
+        
+        if (language === 'E') {
+          message = `Are you sure you want to discard changes to the task #${registry.id}?`;
+        }
+      }
+
+      return this.confirmCloseModal.setModalVisible(message);
     } 
-    
-    this.confirmCloseModal.setModalVisible(message);
+
+    return this.setModalInvisible();
   }
   
   render() {
@@ -522,7 +625,7 @@ class TaskRegistrationModal extends React.Component {
           <View style={styles.centeredView}>
             <View style={[styles.modalView, { backgroundColor: headerBackgroundColor }]}>
               <View style={styles.headerView}>
-                <Text style={styles.id}>{this.state.id && `#${this.state.id}`}</Text>
+                <Text style={styles.id}>{this.state.registry.id && `#${this.state.registry.id}`}</Text>
 
                 <TouchableOpacity onPress={() => this.onCancel()}>
                   <FontAwesome5 name='times'
@@ -571,21 +674,23 @@ class TaskRegistrationModal extends React.Component {
         <ConfirmationModal ref={e => this.confirmEditModal = e}
           message={
             language === 'P' ?
-              `Tem certeza que deseja aplicar essas alterações na tarefa #${this.state.id}?`
+              `Tem certeza que deseja aplicar essas alterações na tarefa #${this.state.registry.id}?`
             :
-              `Are you sure you want to apply these changes to the task #${this.state.id}?`
+              `Are you sure you want to apply these changes to the task #${this.state.registry.id}?`
           }
           onConfirm={() => {
             const { databaseConnection } = this.props;
             const taskService = new TaskService();
 
-            taskService.updateTask(databaseConnection, this.state, () => this.fetchTasks());
+            taskService.updateTask(databaseConnection, this.state.registry, () => this.fetchTasks());
           }} />
 
         <ConfirmationModal ref={e => this.confirmCloseModal = e}
           onConfirm={() => {
             this.setModalInvisible();
           }} />
+
+        <Toastr ref={e => this.toastr = e} />
       </View>
     );
   }

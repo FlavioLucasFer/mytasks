@@ -1,3 +1,4 @@
+import { changeFavoriteStatus, favoriteNumbersExceeded } from "../../utils/Errors";
 import GenericService from "./GenericService";
 
 class TaskService extends GenericService {
@@ -121,29 +122,101 @@ class TaskService extends GenericService {
   }
 
   changeTaskFavoriteStatus(databaseConnection, id, favorite, callback) {
-    const taskFavoriteStatusSql = `
-      UPDATE task SET
-        favorite = '${favorite}' 
-        ,updated_at = CURRENT_TIMESTAMP
-      WHERE id = ${id};
-    `;
+    if (favorite === 'Y') {
+      const verifyQuantityOfFavoriteTasksSql = `
+        SELECT COUNT(id) AS quantity
+        FROM task
+        WHERE status = 'O'
+          AND deleted = 'N'
+          AND favorite = 'Y';
+      `;
+  
+      this.executeQuery(
+        databaseConnection,
+        verifyQuantityOfFavoriteTasksSql,
+        '',
+        '',
+        e => {
+          console.log('rfttersdetsst:', e);
+          if (e.rows.item(0).quantity > 2 && callback) {
+            callback({ 
+              status: false,
+              error: favoriteNumbersExceeded,
+            });
+          } else {
+            const taskFavoriteStatusSql = `
+              UPDATE task SET
+                favorite = '${favorite}' 
+                ,updated_at = CURRENT_TIMESTAMP
+              WHERE id = ${id};
+            `;
 
-    this.executeQuery(
-      databaseConnection,
-      taskFavoriteStatusSql,
-      '[UPDATE FAVORITE STATUS WAS SUCCESS]',
-      '[AN ERROR OCCURS WHEN TRYING TO UPDATE FAVORITE STATUS]',
-      () => {
-        if (callback) {
-          callback({ status: true });
-        }
-      },
-      () => {
-        if (callback) {
-          callback({ status: false });
-        }
-      },
-    );
+            this.executeQuery(
+              databaseConnection,
+              taskFavoriteStatusSql,
+              '[UPDATE FAVORITE STATUS WAS SUCCESS]',
+              '[AN ERROR OCCURS WHEN TRYING TO UPDATE FAVORITE STATUS]',
+              () => {
+                if (callback) {
+                  callback({ status: true });
+
+                  return
+                }
+              },
+              () => {
+                if (callback) {
+                  callback({
+                    status: false,
+                    error: changeFavoriteStatus,
+                  });
+
+                  return
+                }
+              },
+            );
+          }
+        },
+        () => {
+          if (callback) {
+            callback({ 
+              status: false,
+              error: changeFavoriteStatus, 
+            });
+          }
+        },
+      );
+    } else {
+      const taskFavoriteStatusSql = `
+        UPDATE task SET
+          favorite = '${favorite}' 
+          ,updated_at = CURRENT_TIMESTAMP
+        WHERE id = ${id};
+      `;
+
+      this.executeQuery(
+        databaseConnection,
+        taskFavoriteStatusSql,
+        '[UPDATE FAVORITE STATUS WAS SUCCESS]',
+        '[AN ERROR OCCURS WHEN TRYING TO UPDATE FAVORITE STATUS]',
+        () => {
+          if (callback) {
+            callback({ status: true });
+
+            return
+          }
+        },
+        () => {
+          if (callback) {
+            callback({
+              status: false,
+              error: changeFavoriteStatus,
+            });
+
+            return
+          }
+        },
+      );
+    }
   }
 
   markTaskAsOpen(databaseConnection, id, callback) {

@@ -8,6 +8,7 @@ import { bindActionCreators } from 'redux';
 import { actionCreators as actions } from '../redux/actions';
 import ConfirmationModal from '../modals/ConfirmationModal';
 import TaskService from '../database/services/TaskService';
+import Toastr from './Toastr';
 
 const deviceWidth = Dimensions.get('window').width;
 const cardWidth = deviceWidth - 15;
@@ -283,6 +284,10 @@ class Card extends React.Component {
       useNativeDriver: false,
     }).start();
 
+    if (!this.state.cardOpened && this.props.onCardOpen) {
+      this.props.onCardOpen();
+    }
+    
     this.setState({
       cardOpened: !this.state.cardOpened,
     });
@@ -294,7 +299,14 @@ class Card extends React.Component {
     const favorite = this.props.favorite === 'N' ? 'Y' : 'N';
 
     taskService.changeTaskFavoriteStatus(this.props.databaseConnection, this.props.id, 
-      favorite, () => this.fetchTasks());
+      favorite, e => {
+        this.fetchTasks();
+        
+        if (this.props.onFavorite) {
+          this.props.onFavorite(e);
+        }
+
+      });
   }
 
   onPressDone() {
@@ -346,14 +358,20 @@ class Card extends React.Component {
   }
 
   fetchTasks() {
-    const { setTasks, setTasksDone, setTasksNotDone, databaseConnection } = this.props;
+    const { setTasks, setTasksDone, setTasksNotDone, databaseConnection, language } = this.props;
     const taskService = new TaskService();
 
     taskService.getAllTasks(databaseConnection, 'O', tasks => {
       if (tasks.status) {
         setTasks(tasks.data);
       } else {
-        console.log('ERRORRRRRRRRR');
+        let errorMessage = 'Um erro ocorreu durante a busca das tarefas abertas :(';
+
+        if (language) {
+          errorMessage = 'An error occurred while searching for open tasks';
+        }
+
+        this.toastr.setVisible(errorMessage);
       }
     });
 
@@ -361,7 +379,13 @@ class Card extends React.Component {
       if (tasks.status) {
         setTasksDone(tasks.data);
       } else {
-        console.log('ERRORRRRRRRRR');
+        let errorMessage = 'Um erro ocorreu durante a busca das tarefas feitas :(';
+
+        if (language) {
+          errorMessage = 'An error occurred while searching for tasks done';
+        }
+
+        this.toastr.setVisible(errorMessage);
       }
     });
     
@@ -369,7 +393,13 @@ class Card extends React.Component {
       if (tasks.status) {
         setTasksNotDone(tasks.data);
       } else {
-        console.log('ERRORRRRRRRRR');
+        let errorMessage = 'Um erro ocorreu durante a busca das tarefas não feitas :(';
+
+        if (language) {
+          errorMessage = 'An error occurred while searching for tasks not done';
+        }
+
+        this.toastr.setVisible(errorMessage);
       }
     });
   }
@@ -390,6 +420,26 @@ class Card extends React.Component {
     }
   }
 
+  getDateDescription() {
+    const { date, language } = this.props;
+
+    if (language === 'E') {
+      if (date === 'SEG. A SEX.') {
+        return 'MON. TO FRI.';
+      }
+
+      else if (date === 'TODOS OS DIAS') {
+        return 'EVERYDAYS';
+      }
+
+      else {
+        return moment(date, 'DD/MM/YYYY').format('YYYY-MM-DD');
+      }
+    }
+
+    return date;
+  }
+
   render() {
     const { status, selected, multiSelect } = this.props;
 
@@ -404,6 +454,10 @@ class Card extends React.Component {
           delayPressIn={0} 
           delayPressOut={0}
           onPress={() => {
+            if (this.props.onPressCard) {
+              this.props.onPressCard();
+            }
+
             if (!selected && !multiSelect) {
               this.cardAnimation();
             }
@@ -444,7 +498,7 @@ class Card extends React.Component {
           }
   
           <View style={styles.dateAlarmView}>
-            <Text style={styles.dateTime}>{this.props.date} {this.props.hour}</Text>
+            <Text style={styles.dateTime}>{this.getDateDescription()} {this.props.hour}</Text>
 
             {/* {status === 'O' &&
               <FontAwesome5 name={this.props.alarm === 'Y' ? 'volume-up' : 'volume-mute'}
@@ -533,6 +587,8 @@ class Card extends React.Component {
               this.props.onConfirmDelete()
             }
           }} />
+
+        <Toastr ref={e => this.toastr = e} />
       </View>
     );
   }
@@ -598,6 +654,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 3,
     right: 3,
+
+    width: 50,
+    height: 50,
+    alignItems: 'flex-end',
   },
 
   dateAlarmView: {

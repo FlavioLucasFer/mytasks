@@ -22,10 +22,6 @@ export default class CalendarTest extends React.Component {
       alarms: [{ method: Calendar.AlarmMethod.DEFAULT }]
     };
 
-    console.log('test:', moment('2021-02-22T17:36:00.0Z')
-      .add(1, 'm')
-      .toDate());
-
     try {
       const createEventAsyncRes = await Calendar.createEventAsync(
         calendarId.toString(),

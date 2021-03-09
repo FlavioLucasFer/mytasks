@@ -12,6 +12,7 @@ import {
   CLEAR_SELECTED_TASK,
   INCREASE_TASK_TIME_COUNTER,
   RESET_TASK_TIME_COUNTER,
+  SET_MORE_SECONDS_TO_TASK_TIME_COUNTER,
 } from './types';
 import initialState from './initialState';
 
@@ -23,7 +24,6 @@ const setInitialLoadingToFalse = (state) => {
 };
 
 const setTasks = (state, tasks) => {
-  console.log('reducer:', tasks);
   return {
     ...state,
     tasks,
@@ -91,10 +91,18 @@ const increaseTaskTimeCounter = state => {
   };
 }
 
+
 const resetTaskTimeCounter = state => {
   return {
     ...state,
     taskTimeCounter: 0,
+  };
+}
+
+const setMoreSecondsToTaskTimeCounter = (state, seconds) => {
+  return {
+    ...state,
+    taskTimeCounter: state.taskTimeCounter + seconds,
   };
 }
 
@@ -141,6 +149,9 @@ const reducer = (state = initialState, action) => {
 
     case RESET_TASK_TIME_COUNTER:
       return resetTaskTimeCounter(state);
+
+    case SET_MORE_SECONDS_TO_TASK_TIME_COUNTER:
+      return setMoreSecondsToTaskTimeCounter(state, action.seconds);
 
     default:
       return state;
