@@ -4,9 +4,9 @@
     "slug": "MyTasks",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./src/images/logo.png",
+    "icon": "./assets/icon.png",
     "splash": {
-      "image": "./src/images/logo.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -17,14 +17,15 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "mytasks.demo"
     },
     "android": {
       "package": "mytasks.demo",
       "useNextNotificationsApi": true
     },
     "web": {
-      "favicon": "./src/images/logo.png"
+      "favicon": "./assets/icon.png"
     }
   }
 }
